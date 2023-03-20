@@ -29,6 +29,12 @@ variable "amazon_side_asn" {
   default = 64512
 }
 
+variable "tags" {
+  type        = map(string)
+  description = "A mapping of tags to assign to the Transit Gateway"
+  default     = {}
+}
+
 variable "subnets" {
   type        = map(number)
   description = "Number of subnets to create per availability zone"

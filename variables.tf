@@ -14,11 +14,13 @@ variable "global_cidr" {
 variable "num_vpcs" {
   description = "Number of VPCs to deploy"
   type = number
+  default = 4
 }
 
 variable "subnets" {
   type        = map(number)
   description = "Number of subnets to create per availability zone"
+  default = {"a" = 4, "b" =4 }
 }
 
 variable "tgw_name" {

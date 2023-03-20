@@ -38,8 +38,8 @@ variable "tags" {
 variable "subnets" {
   type        = map(number)
   description = "Number of subnets to create per availability zone"
-  default = {
+  default = [{
     "a" = 4,
     "b" = 4
-  }
+  }]
 }

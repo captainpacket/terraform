@@ -39,7 +39,7 @@ variable "subnets" {
   type        = map(number)
   description = "Number of subnets to create per availability zone"
   default = {
-    "a" = 4
+    "a" = 4,
     "b" = 4
   }
 }

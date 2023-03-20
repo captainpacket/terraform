@@ -17,15 +17,6 @@ variable "num_vpcs" {
   default = 4
 }
 
-variable "subnets" {
-  type        = map(number)
-  description = "Number of subnets to create per availability zone"
-  default = {
-    "a" = 4
-    "b" = 4
-  }
-}
-
 variable "tgw_name" {
   type        = string
   description = "The name of the Transit Gateway"
@@ -34,4 +25,13 @@ variable "tgw_name" {
 variable "amazon_side_asn" {
   type        = number
   description = "The ASN for the Amazon side of the Transit Gateway"
+}
+
+variable "subnets" {
+  type        = map(number)
+  description = "Number of subnets to create per availability zone"
+  default = {
+    "a" = 4
+    "b" = 4
+  }
 }

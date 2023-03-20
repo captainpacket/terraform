@@ -10,6 +10,7 @@ variable "global_cidr" {
 
 # Define the number of VPCs to create as a variable
 variable "num_vpcs" {
+  description = "Number of VPCs to deploy"
   type = number
 }
 

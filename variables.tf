@@ -2,9 +2,6 @@ variable "region" {
   type        = string
   description = "The AWS region where the VPCs will be created"
   default = "us-west-2"
-  validation {
-    condition     = can(regex("^[a-z]{2}(-gov)?-[a-z]+-[0-9]$", var.region))
-  }
 }
 
 variable "global_cidr" {

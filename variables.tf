@@ -20,11 +20,13 @@ variable "num_vpcs" {
 variable "tgw_name" {
   type        = string
   description = "The name of the Transit Gateway"
+  default = "tgw"
 }
 
 variable "amazon_side_asn" {
   type        = number
   description = "The ASN for the Amazon side of the Transit Gateway"
+  default = 64512
 }
 
 variable "subnets" {

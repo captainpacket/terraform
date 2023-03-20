@@ -7,6 +7,7 @@ variable "region" {
 variable "global_cidr" {
   type        = string
   description = "The CIDR block for the VPCs"
+  default = "10.1.0.0/16"
 }
 
 # Define the number of VPCs to create as a variable

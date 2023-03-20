@@ -20,7 +20,7 @@ variable "num_vpcs" {
 variable "subnets" {
   type        = map(number)
   description = "Number of subnets to create per availability zone"
-  default = {"a" = 4, "b" =4 }
+  default = {"a" = 4, "b" = 4}
 }
 
 variable "tgw_name" {

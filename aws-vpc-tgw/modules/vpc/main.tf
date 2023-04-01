@@ -16,6 +16,11 @@ variable "subnet_counts" {
   type = map(number)
 }
 
+variable "key_pair_name" {
+  type        = string
+  description = "Name of the EC2 key pair to be used for the instances"
+}
+
 resource "aws_vpc" "vpc" {
   cidr_block = var.cidr_block
 
@@ -72,8 +77,9 @@ resource "aws_instance" "subnet_instance" {
   }
 
   ami           = data.aws_ami.amazon_linux.id
-  instance_type = "t3.micro" # This is one of the cheapest instance types available
+  instance_type = "t4g.nano" # This is one of the cheapest instance types available
   subnet_id     = each.value.subnet_id
+  key_name      = var.key_pair_name
 
   tags = {
     Name = "cheap-instance-${each.key}"

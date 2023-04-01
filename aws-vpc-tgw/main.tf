@@ -9,6 +9,12 @@ variable "instances_per_subnet" {
   description = "Number of EC2 instances per subnet"
 }
 
+variable "key_pair_file" {
+  type        = string
+  default     = "id_rsa.pub"
+  description = "Path to the public key file for the key pair"
+}
+
 # Create the Transit Gateway
 resource "aws_ec2_transit_gateway" "tgw" {
   description = var.tgw_name
@@ -34,6 +40,7 @@ module "vpcs" {
   cidr_block = cidrsubnet(var.global_cidr, 4, count.index)
   name       = "vpc-${count.index}"
   subnet_counts = var.subnets
+  key_pair_name = aws_key_pair.example.key_name
 }
 
 # Create a peering attachment for each VPC to the Transit Gateway
@@ -53,6 +60,11 @@ resource "aws_ec2_transit_gateway_route_table" "tgw_route_table" {
   tags = {
     Name = "tgw-route-table-${count.index}"
   }
+}
+
+resource "aws_key_pair" "example" {
+  key_name   = "example-key"
+  public_key = file(var.key_pair_file)
 }
 
 resource "aws_ec2_transit_gateway_route_table_association" "tgw_rt_assoc" {

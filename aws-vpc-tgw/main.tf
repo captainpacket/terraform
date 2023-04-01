@@ -36,6 +36,22 @@ resource "aws_ec2_transit_gateway_vpc_attachment" "vpc_attachment" {
   transit_gateway_id = aws_ec2_transit_gateway.tgw.id
 }
 
+resource "aws_ec2_transit_gateway_route_table" "tgw_route_table" {
+  count = var.num_vpcs
+
+  transit_gateway_id = aws_ec2_transit_gateway.tgw.id
+
+  tags = {
+    Name = "tgw-route-table-${count.index}"
+  }
+}
+
+resource "aws_ec2_transit_gateway_route_table_association" "tgw_route_table_association" {
+  count = var.num_vpcs
+
+  transit_gateway_attachment_id  = aws_ec2_transit_gateway_vpc_attachment.vpc_attachment[count.index].id
+  transit_gateway_route_table_id = aws_ec2_transit_gateway_route_table.tgw_route_table[count.index].id
+}
 
 # Output the Transit Gateway ID and the VPC attachment IDs
 

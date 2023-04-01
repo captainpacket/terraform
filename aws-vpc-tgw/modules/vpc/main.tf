@@ -1,3 +1,9 @@
+variable "instances_per_subnet" {
+  type        = number
+  default     = 1
+  description = "Number of EC2 instances per subnet"
+}
+
 variable "name" {
   type = string
 }
@@ -57,6 +63,42 @@ resource "aws_subnet" "subnet" {
   }
 }
 
+resource "aws_instance" "subnet_instance" {
+  for_each = {
+    for idx in range(local.total_subnet_count * var.instances_per_subnet) :
+    idx => {
+      subnet_id = values(aws_subnet.subnet)[idx / var.instances_per_subnet].id
+    }
+  }
+
+  ami           = data.aws_ami.amazon_linux.id
+  instance_type = "t3.micro" # This is one of the cheapest instance types available
+  subnet_id     = each.value.subnet_id
+
+  tags = {
+    Name = "cheap-instance-${each.key}"
+  }
+}
+
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+
+  filter {
+    name   = "owner-alias"
+    values = ["amazon"]
+  }
+
+  filter {
+    name   = "state"
+    values = ["available"]
+  }
+}
+
 output "vpc_id" {
   value = aws_vpc.vpc.id
 }
@@ -67,4 +109,8 @@ output "subnet_ids" {
 
 output "tgw_attach_subnet_ids" { 
   value = slice(values(aws_subnet.subnet), local.total_subnet_count, local.total_subnet_count + local.tgw_attach_subnet_count)[*].id
+}
+
+output "subnet_instance_ids" {
+  value = values(aws_instance.subnet_instance)[*].id
 }

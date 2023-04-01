@@ -3,6 +3,12 @@ provider "aws" {
   region = var.region
 }
 
+variable "instances_per_subnet" {
+  type        = number
+  default     = 1
+  description = "Number of EC2 instances per subnet"
+}
+
 # Create the Transit Gateway
 resource "aws_ec2_transit_gateway" "tgw" {
   description = var.tgw_name

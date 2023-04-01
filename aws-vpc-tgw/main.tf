@@ -7,6 +7,9 @@ provider "aws" {
 resource "aws_ec2_transit_gateway" "tgw" {
   description = var.tgw_name
   amazon_side_asn = var.amazon_side_asn
+  auto_accept_shared_attachments   = "disable"
+  default_route_table_association  = "disable"
+  default_route_table_propagation  = "disable"
 
   tags = merge(
     {
@@ -46,7 +49,7 @@ resource "aws_ec2_transit_gateway_route_table" "tgw_route_table" {
   }
 }
 
-resource "aws_ec2_transit_gateway_route_table_association" "tgw_route_table_association" {
+resource "aws_ec2_transit_gateway_route_table_association" "tgw_rt_assoc" {
   count = var.num_vpcs
 
   transit_gateway_attachment_id  = aws_ec2_transit_gateway_vpc_attachment.vpc_attachment[count.index].id
@@ -54,6 +57,10 @@ resource "aws_ec2_transit_gateway_route_table_association" "tgw_route_table_asso
 }
 
 # Output the Transit Gateway ID and the VPC attachment IDs
+
+output "tgw_route_table_ids" {
+  value = aws_ec2_transit_gateway_route_table.tgw_route_table[*].id
+}
 
 output "vpc_attachment_ids" {
   value = aws_ec2_transit_gateway_vpc_attachment.vpc_attachment[*].id

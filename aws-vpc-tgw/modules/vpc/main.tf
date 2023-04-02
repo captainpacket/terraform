@@ -68,6 +68,19 @@ resource "aws_subnet" "subnet" {
   }
 }
 
+resource "aws_security_group" "ssh_sg" {
+  name        = "${var.name}-ssh-sg"
+  description = "Allow SSH inbound traffic"
+  vpc_id      = aws_vpc.vpc.id
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
 resource "aws_instance" "subnet_instance" {
   for_each = {
     for idx in range(local.total_subnet_count * var.instances_per_subnet) :
@@ -80,9 +93,13 @@ resource "aws_instance" "subnet_instance" {
   instance_type = "t4g.nano" # This is one of the cheapest instance types available
   subnet_id     = each.value.subnet_id
   key_name      = var.key_pair_name
+  vpc_security_group_ids = [aws_security_group.ssh_sg.id]
 
-  tags = {
-    Name = "cheap-instance-${each.key}"
+   tags = {
+    Name          = "${var.name}-vpc-subnet-${each.value.subnet_id}-instance-${substr(each.key, -1, 1)}"
+    VPC           = var.name
+    Subnet_ID     = each.value.subnet_id
+    Instance_Num  = substr(each.key, -1, 1)
   }
 }
 
@@ -91,7 +108,7 @@ data "aws_ami" "amazon_linux" {
 
   filter {
     name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+    values = ["amzn2-ami-hvm-*-arm64-gp2"]
   }
 
   filter {

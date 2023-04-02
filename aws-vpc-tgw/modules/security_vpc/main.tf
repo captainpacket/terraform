@@ -216,8 +216,8 @@ resource "aws_instance" "palo_alto_fw" {
   ami           = data.aws_ami.palo_alto_fw.id
   instance_type = "m5.xlarge" # Update the instance type if needed
   vpc_security_group_ids = [aws_security_group.palo_alto_mgmt_sg.id]
+  user_data = "mgmt-interface-swap=enable\nplugin-op-commands=aws-gwlb-inspect:enable\n"
   subnet_id     = [for subnet in aws_subnet.subnet : subnet.id if subnet.tags["Type"] == "palo_alto"][count.index]
-  user_data = "#!/bin/bash\nmgmt-interface-swap=enable\n"
   key_name      = var.key_pair_name
 
   tags = {

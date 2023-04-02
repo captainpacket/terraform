@@ -1,6 +1,27 @@
 # Configure the AWS provider with the specified region
+
+terraform {
+  required_providers {
+    forwardnetworks = {
+      source  = "local/hashicorp/forwardnetworks"
+      version = ">= 1.0.0"
+    }
+  }
+  required_version = ">= 0.13"
+}
+
+provider "forwardnetworks" {
+  username = "6o4e-eiidn-xfum"
+  password = "lvbwxalmp634encqezmks6w4k5dfegqh"
+  base_url = "https://fwd.app"
+}
+
 provider "aws" {
   region = var.region
+}
+
+data "forwardnetworks_externalid" "example" {
+  network_id = "155308"
 }
 
 variable "instances_per_subnet" {
@@ -96,4 +117,15 @@ output "vpc_attachment_ids" {
 output "palo_alto_mgmt_eips" {
   description = "Elastic IPs for Palo Alto management interfaces"
   value       = module.security_vpc.palo_alto_mgmt_eips
+}
+
+module "iam_role" {
+  source = "./modules/iam_role"
+  role_name = "Forward_Networks"
+  external_id = data.forwardnetworks_externalid.example.external_id
+}
+
+output "external_service_role_arn" {
+  value       = module.iam_role.role_arn
+  description = "ARN of the IAM role created for the external service"
 }

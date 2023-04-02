@@ -1,3 +1,7 @@
+data "http" "icanhazip" {
+  url = "http://ipv4.icanhazip.com"
+}
+
 variable "name" {
   type = string
 }
@@ -102,14 +106,14 @@ output "tgw_attachment_id" {
 
 resource "aws_subnet" "subnet" {
   for_each = {
-    for count in range(length(local.availability_zones) * 3):
+    for count in range(length(local.availability_zones) * 4):
       "${count}" => {
         cidr_block = cidrsubnet(var.cidr_block, 8, count)
         availability_zone = element(local.availability_zones, count % length(local.availability_zones))
         ipv6_cidr_block = cidrsubnet(aws_vpc.vpc.ipv6_cidr_block, 8, count)
         assign_ipv6_address_on_creation = true
         name = "${var.name}-subnet-${element(local.availability_zones, count % length(local.availability_zones))}-${count + 1}"
-        type = count < 2 ? "palo_alto" : count < 4 ? "palo_alto_gwlb" : "tgw"
+        type = count < 2 ? "palo_alto" : count < 4 ? "palo_alto_gwlb" : count < 6 ? "nat_gw" : "tgw"
       }
   }
 
@@ -181,8 +185,9 @@ resource "aws_nat_gateway" "nat_gw" {
   count = length(local.availability_zones)
 
   allocation_id = aws_eip.nat_eip[count.index].id
-  subnet_id     = aws_subnet.subnet[format("%d", count.index * 2)].id
+  subnet_id     = [for subnet in aws_subnet.subnet : subnet.id if subnet.tags["Type"] == "nat_gw"][count.index]
 }
+
 
 resource "aws_route_table" "nat_route_table" {
   count = length(local.availability_zones)
@@ -210,7 +215,9 @@ resource "aws_instance" "palo_alto_fw" {
 
   ami           = data.aws_ami.palo_alto_fw.id
   instance_type = "m5.xlarge" # Update the instance type if needed
+  vpc_security_group_ids = [aws_security_group.palo_alto_mgmt_sg.id]
   subnet_id     = [for subnet in aws_subnet.subnet : subnet.id if subnet.tags["Type"] == "palo_alto"][count.index]
+  user_data = "#!/bin/bash\nmgmt-interface-swap=enable\n"
   key_name      = var.key_pair_name
 
   tags = {
@@ -238,4 +245,34 @@ resource "aws_eip_association" "palo_alto_mgmt_eip_association" {
 
   network_interface_id = aws_instance.palo_alto_fw[count.index].primary_network_interface_id
   allocation_id = aws_eip.palo_alto_mgmt_eip[count.index].id
+}
+
+resource "aws_security_group" "palo_alto_mgmt_sg" {
+  name_prefix = "palo-alto-mgmt-sg"
+  vpc_id      = aws_vpc.vpc.id
+  
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["70.120.129.118/32"]
+  }
+  
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["70.120.129.118/32"]
+  }
+  
+  ingress {
+    from_port   = 8443
+    to_port     = 8443
+    protocol    = "tcp"
+    cidr_blocks = ["70.120.129.118/32"]
+  }
+  
+  tags = {
+    Name = "palo-alto-mgmt-sg"
+  }
 }

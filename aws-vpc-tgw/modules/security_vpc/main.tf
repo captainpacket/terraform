@@ -218,7 +218,24 @@ resource "aws_instance" "palo_alto_fw" {
   }
 }
 
+resource "aws_eip" "palo_alto_mgmt_eip" {
+  count = length(aws_instance.palo_alto_fw)
+
+  vpc = true
+
+  tags = {
+    Name = "palo-alto-fw-mgmt-eip-${count.index + 1}"
+  }
+}
+
 output "palo_alto_mgmt_eips" {
   description = "Elastic IPs for Palo Alto management interfaces"
-  value       = aws_instance.palo_alto_fw.*.public_ip
+  value       = aws_eip.palo_alto_mgmt_eip.*.public_ip
+}
+
+resource "aws_eip_association" "palo_alto_mgmt_eip_association" {
+  count = length(aws_instance.palo_alto_fw)
+
+  network_interface_id = aws_instance.palo_alto_fw[count.index].primary_network_interface_id
+  allocation_id = aws_eip.palo_alto_mgmt_eip[count.index].id
 }

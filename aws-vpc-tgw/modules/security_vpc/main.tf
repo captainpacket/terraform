@@ -129,24 +129,6 @@ resource "aws_subnet" "subnet" {
   }
 }
 
-resource "aws_network_interface" "palo_alto_gwlb_eni" {
-  count = length(local.availability_zones)
-
-  subnet_id = [for subnet in aws_subnet.subnet : subnet.id if subnet.tags["Type"] == "palo_alto_gwlb"][count.index]
-  description = "Palo Alto Firewall GWLB Interface ${count.index + 1}"
-
-  tags = {
-    Name = "palo-alto-fw-gwlb-eni-${count.index + 1}"
-  }
-}
-
-resource "aws_network_interface_attachment" "palo_alto_gwlb_attachment" {
-  count = length(local.availability_zones)
-
-  instance_id = aws_instance.palo_alto_fw[count.index].id
-  network_interface_id = aws_network_interface.palo_alto_gwlb_eni[count.index].id
-  device_index = 1
-}
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.vpc.id
 
@@ -210,18 +192,52 @@ resource "aws_route_table_association" "nat_route_table_association" {
   route_table_id = aws_route_table.nat_route_table[count.index].id
 }
 
+resource "aws_network_interface" "palo_alto_primary_eni" {
+  count = length(local.availability_zones)
+
+  subnet_id = [for subnet in aws_subnet.subnet : subnet.id if subnet.tags["Type"] == "palo_alto"][count.index]
+  security_groups = [aws_security_group.palo_alto_mgmt_sg.id]
+
+  tags = {
+    Name = "palo-alto-fw-primary-eni-${count.index + 1}"
+  }
+}
+
+resource "aws_network_interface" "palo_alto_secondary_eni" {
+  count = length(local.availability_zones)
+
+  subnet_id = [for subnet in aws_subnet.subnet : subnet.id if subnet.tags["Type"] == "palo_alto_gwlb"][count.index]
+
+  tags = {
+    Name = "palo-alto-fw-secondary-eni-${count.index + 1}"
+  }
+}
+
+variable "secret" {
+  type        = string
+  description = "Generated secret for Palo Alto firewall user data"
+}
+
 resource "aws_instance" "palo_alto_fw" {
   count = length(local.availability_zones)
 
   ami           = data.aws_ami.palo_alto_fw.id
   instance_type = "m5.xlarge" # Update the instance type if needed
-  vpc_security_group_ids = [aws_security_group.palo_alto_mgmt_sg.id]
-  user_data = "mgmt-interface-swap=enable\nplugin-op-commands=aws-gwlb-inspect:enable\n"
-  subnet_id     = [for subnet in aws_subnet.subnet : subnet.id if subnet.tags["Type"] == "palo_alto"][count.index]
+  user_data = "mgmt-interface-swap=enable\nplugin-op-commands=aws-gwlb-inspect:enable\nmy_secret=${var.secret}\n"
   key_name      = var.key_pair_name
 
   tags = {
     Name = "palo-alto-fw-${count.index + 1}"
+  }
+
+  network_interface {
+    network_interface_id = aws_network_interface.palo_alto_primary_eni[count.index].id
+    device_index         = 0
+  }
+
+  network_interface {
+    network_interface_id = aws_network_interface.palo_alto_secondary_eni[count.index].id
+    device_index         = 1
   }
 }
 

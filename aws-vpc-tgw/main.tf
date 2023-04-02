@@ -88,6 +88,14 @@ resource "aws_key_pair" "example" {
   public_key = file(var.key_pair_file)
 }
 
+resource "random_string" "my_secret" {
+  length  = 16
+  special = true
+  upper   = true
+  lower   = true
+  numeric  = true
+}
+
 resource "aws_ec2_transit_gateway_route_table_association" "tgw_rt_assoc" {
   count = var.num_vpcs
 
@@ -104,6 +112,7 @@ module "security_vpc" {
   name       = "security-vpc"
   key_pair_name = aws_key_pair.example.key_name
   transit_gateway_id = aws_ec2_transit_gateway.tgw.id
+  secret = random_string.my_secret.result
 }
 
 output "tgw_route_table_ids" {
@@ -128,4 +137,9 @@ module "iam_role" {
 output "external_service_role_arn" {
   value       = module.iam_role.role_arn
   description = "ARN of the IAM role created for the external service"
+}
+
+output "my_secret" {
+  value     = random_string.my_secret.result
+  sensitive = true
 }

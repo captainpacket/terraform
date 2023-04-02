@@ -26,6 +26,44 @@ data "aws_ami" "palo_alto_fw" {
   owners = ["679593333241"] # Palo Alto Networks AWS Marketplace account ID
 }
 
+resource "aws_lb" "gwlb" {
+  name               = "${var.name}-gwlb"
+  load_balancer_type = "gateway"
+
+  subnet_mapping {
+    subnet_id = aws_subnet.subnet[0].id
+  }
+
+  subnet_mapping {
+    subnet_id = aws_subnet.subnet[1].id
+  }
+
+  tags = {
+    Name = "${var.name}-gwlb"
+  }
+}
+
+resource "aws_lb_target_group" "gwlb_tg" {
+  name     = "${var.name}-gwlb-tg"
+  port     = 6081
+  protocol = "GENEVE"
+  target_type = "instance"
+  vpc_id = aws_vpc.vpc.id
+
+  health_check {
+    port     = "traffic-port"
+    protocol = "TCP"
+  }
+}
+
+resource "aws_lb_target_group_attachment" "gwlb_tg_attachment" {
+  count = length(local.availability_zones)
+
+  target_group_arn = aws_lb_target_group.gwlb_tg.arn
+  target_id        = aws_instance.palo_alto_fw[count.index].id
+  port             = 6081
+}
+
 resource "aws_vpc" "vpc" {
   cidr_block = var.cidr_block
 
@@ -64,14 +102,14 @@ output "tgw_attachment_id" {
 
 resource "aws_subnet" "subnet" {
   for_each = {
-    for count in range(length(local.availability_zones) * 2):
+    for count in range(length(local.availability_zones) * 3):
       "${count}" => {
         cidr_block = cidrsubnet(var.cidr_block, 8, count)
         availability_zone = element(local.availability_zones, count % length(local.availability_zones))
         ipv6_cidr_block = cidrsubnet(aws_vpc.vpc.ipv6_cidr_block, 8, count)
         assign_ipv6_address_on_creation = true
         name = "${var.name}-subnet-${element(local.availability_zones, count % length(local.availability_zones))}-${count + 1}"
-        type = count < length(local.availability_zones) ? "tgw" : "palo_alto"
+        type = count < 2 ? "palo_alto" : count < 4 ? "palo_alto_gwlb" : "tgw"
       }
   }
 
@@ -87,6 +125,24 @@ resource "aws_subnet" "subnet" {
   }
 }
 
+resource "aws_network_interface" "palo_alto_gwlb_eni" {
+  count = length(local.availability_zones)
+
+  subnet_id = [for subnet in aws_subnet.subnet : subnet.id if subnet.tags["Type"] == "palo_alto_gwlb"][count.index]
+  description = "Palo Alto Firewall GWLB Interface ${count.index + 1}"
+
+  tags = {
+    Name = "palo-alto-fw-gwlb-eni-${count.index + 1}"
+  }
+}
+
+resource "aws_network_interface_attachment" "palo_alto_gwlb_attachment" {
+  count = length(local.availability_zones)
+
+  instance_id = aws_instance.palo_alto_fw[count.index].id
+  network_interface_id = aws_network_interface.palo_alto_gwlb_eni[count.index].id
+  device_index = 1
+}
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.vpc.id
 
@@ -160,4 +216,9 @@ resource "aws_instance" "palo_alto_fw" {
   tags = {
     Name = "palo-alto-fw-${count.index + 1}"
   }
+}
+
+output "palo_alto_mgmt_eips" {
+  description = "Elastic IPs for Palo Alto management interfaces"
+  value       = aws_instance.palo_alto_fw.*.public_ip
 }

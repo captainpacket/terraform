@@ -92,3 +92,8 @@ output "tgw_route_table_ids" {
 output "vpc_attachment_ids" {
   value = aws_ec2_transit_gateway_vpc_attachment.vpc_attachment[*].id
 }
+
+output "palo_alto_mgmt_eips" {
+  description = "Elastic IPs for Palo Alto management interfaces"
+  value       = module.security_vpc.palo_alto_mgmt_eips
+}

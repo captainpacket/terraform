@@ -76,6 +76,15 @@ resource "aws_ec2_transit_gateway_route_table_association" "tgw_rt_assoc" {
 
 # Output the Transit Gateway ID and the VPC attachment IDs
 
+module "security_vpc" {
+  source = "./modules/security_vpc"
+
+  cidr_block = cidrsubnet(var.global_cidr, 4, var.num_vpcs + 1)
+  name       = "security-vpc"
+  key_pair_name = aws_key_pair.example.key_name
+  transit_gateway_id = aws_ec2_transit_gateway.tgw.id
+}
+
 output "tgw_route_table_ids" {
   value = aws_ec2_transit_gateway_route_table.tgw_route_table[*].id
 }

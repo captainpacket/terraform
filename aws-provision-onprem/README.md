@@ -12,7 +12,7 @@ This Terraform script automates the process of creating AWS accounts, IAM roles,
 1. Clone the repository and navigate to the root directory.
 2. Run `terraform init` to initialize the working directory and download the required providers.
 3. Run `terraform plan` to preview the template create process.
-4. Run `terraform init --upgrade` to initialize the new providers fro the AWS accounts.
+4. Run `terraform init --upgrade` to initialize the new providers from the AWS accounts.
 4. Run `terraform apply` to create the infrastructure resources.
 
 The script creates IAM roles and policies for each account in the AWS organization, and creates a new cloud account on AWS. The IAM roles allow the specified AWS account to assume the roles.

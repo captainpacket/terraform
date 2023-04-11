@@ -1,0 +1,102 @@
+# Define output variables
+
+resource "time_static" "time" {}
+
+locals {
+  # Generate a list of IAM role ARNs
+  rolearn = [
+    %{ for account in accounts ~}module.iam_role_${account}.forward_role_arn%{ if account != accounts[length(accounts)-1] },%{ endif }
+    %{ endfor }]
+}
+
+
+resource "aws_iam_user" "assume_role_user" {
+  name = "Forward_Enterprise"
+}
+
+resource "aws_iam_access_key" "assume_role_user_access_key" {
+  user = aws_iam_user.assume_role_user.name
+}
+
+resource "aws_iam_policy" "assume_role_policy" {
+  name = "assume_role_policy"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = "sts:AssumeRole"
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_user_policy_attachment" "assume_role_attachment" {
+  user = aws_iam_user.assume_role_user.name
+  policy_arn = aws_iam_policy.assume_role_policy.arn
+}
+
+#data "http" "forwardapi" {
+#  url        = "https://fwd.app/api/networks/${networkid}/cloudAccounts"
+#  method     = "POST"
+#  request_body = jsonencode({
+#    name = var.setupid
+#    type = "AWS"
+#    collect = true
+#    assumeRoleInfos = [
+#      for idx in range(length(local.account_ids)) : {
+#        accountId   = local.account_ids[idx]
+#        accountName = local.account_names[idx]
+#        roleArn     = local.rolearn[idx]
+#        enabled     = true
+#     }
+#   ]
+#     username = aws_iam_access_key.assume_role_user_access_key.id
+#     password = aws_iam_access_key.assume_role_user_access_key.secret
+#     regions = {
+#       for region_name in var.region_names : region_name => time_static.time.unix * 1000
+#       }
+#  })
+#  request_headers = {
+#    Content-Type = "application/json"
+#    Authorization = local.auth_header
+#  }
+#}
+
+locals {
+  account_info = [
+    for idx in range(length(local.account_ids)) : {
+      errorMsg   = null
+      id         = local.account_ids[idx]
+      name       = local.account_names[idx]
+      roleArn    = local.rolearn[idx]
+    }
+  ]
+}
+
+resource "forwardnetworks_cloud" "aws_multi_account" {
+  name           = var.setupid
+  type      = "AWS"
+  network_id     = var.networkid
+  account_name = local.account_names
+  account_id   = local.account_ids
+  rolearn      = local.rolearn
+  username     = aws_iam_access_key.assume_role_user_access_key.id
+  secret     = aws_iam_access_key.assume_role_user_access_key.secret
+  regions      = var.regions
+}
+
+output "forward_json" {
+  value = local.account_info
+}
+
+output "access_key_id" {
+  value     = aws_iam_access_key.assume_role_user_access_key.id
+  sensitive = true
+}
+
+output "secret_access_key" {
+  value     = aws_iam_access_key.assume_role_user_access_key.secret
+  sensitive = true
+}

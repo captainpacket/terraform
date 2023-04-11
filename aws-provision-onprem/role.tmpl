@@ -1,0 +1,10 @@
+%{ for account in accounts ~}
+module "iam_role_${account}" {
+  source        = "./iam_role"
+  mgmt_account = local.mgmt_account
+
+  providers = {
+    aws = aws.a${account}
+  }
+}
+%{ endfor }

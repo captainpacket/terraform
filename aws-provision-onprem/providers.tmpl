@@ -1,0 +1,9 @@
+%{ for account in accounts ~}
+provider "aws" {
+  alias  = "a${account}"
+  assume_role {
+    role_arn    = "arn:aws:iam::${account}:role/OrganizationAccountAccessRole"
+  }
+}
+%{ endfor ~}
+

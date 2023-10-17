@@ -10,6 +10,12 @@ variable "global_cidr" {
   default = "10.1.0.0/16"
 }
 
+variable "instances_per_subnet" {
+  type        = number
+  default     = 3
+  description = "Number of EC2 instances per subnet"
+} 
+
 # Define the number of VPCs to create as a variable
 variable "num_vpcs" {
   description = "Number of VPCs to deploy"
@@ -42,4 +48,32 @@ variable "subnets" {
     "a" = 2,
     "b" = 2
   }
+}
+
+variable "fwd_username" {
+  description = "The Forward Networks username"
+  type        = string
+}
+
+variable "fwd_password" {
+  description = "The Forward Networks Password"
+  type        = string
+  sensitive   = true
+}
+
+variable "network_id" {
+  description = "The Forward Networks Network ID"
+  type	      = string
+}
+
+variable "fwd_apphost" {
+  description = "The Forward Networks Password"
+  type        = string
+  default     = "fwd.app"
+}
+
+variable "setup_id" {
+  description = "The Forward Networks Setup ID"
+  type	      = string
+  default      = "cloud_collect"
 }

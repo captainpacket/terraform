@@ -160,7 +160,7 @@ resource "aws_route_table_association" "public" {
 resource "aws_eip" "nat_eip" {
   count = length(local.availability_zones)
 
-  vpc = true
+  domain = "vpc"
 }
 
 resource "aws_nat_gateway" "nat_gw" {
@@ -244,7 +244,7 @@ resource "aws_instance" "palo_alto_fw" {
 resource "aws_eip" "palo_alto_mgmt_eip" {
   count = length(aws_instance.palo_alto_fw)
 
-  vpc = true
+  domain = "vpc"
 
   tags = {
     Name = "palo-alto-fw-mgmt-eip-${count.index + 1}"

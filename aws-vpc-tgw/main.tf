@@ -1,39 +1,85 @@
-# Configure the AWS provider with the specified region
-
 terraform {
   required_providers {
     forwardnetworks = {
-      source  = "local/hashicorp/forwardnetworks"
-      version = ">= 1.0.0"
+      source  = "fracticated/forwardnetworks"
+      version = "0.0.1"
     }
   }
   required_version = ">= 0.13"
 }
 
 provider "forwardnetworks" {
-  username = "6o4e-eiidn-xfum"
-  password = "lvbwxalmp634encqezmks6w4k5dfegqh"
-  base_url = "https://fwd.app"
+  username = var.fwd_username
+  password = var.fwd_password
+  #apphost = var.fwd_apphost
+  insecure = false
 }
 
 provider "aws" {
   region = var.region
 }
 
+module "iam_role" {
+  source = "./modules/iam_role"
+  role_name = var.setup_id
+  external_id = data.forwardnetworks_externalid.example.external_id
+}
+
+module "security_vpc" {
+  source = "./modules/security_vpc"
+
+  cidr_block = cidrsubnet(var.global_cidr, 4, var.num_vpcs + 1)
+  name       = "security-vpc"
+  key_pair_name = aws_key_pair.ssh_key.key_name
+  transit_gateway_id = aws_ec2_transit_gateway.tgw.id
+  secret = random_string.my_secret.result
+}
+
+module "vpcs" {
+  source = "./modules/vpc"
+
+  count = var.num_vpcs
+
+  cidr_block = cidrsubnet(var.global_cidr, 4, count.index)
+  name       = "vpc-${count.index}"
+  subnet_counts = var.subnets
+  key_pair_name = aws_key_pair.ssh_key.key_name
+}
+
 data "forwardnetworks_externalid" "example" {
-  network_id = "155308"
+  network_id = var.network_id
 }
 
-variable "instances_per_subnet" {
-  type        = number
-  default     = 1
-  description = "Number of EC2 instances per subnet"
+resource "forwardnetworks_cloud" "example" {
+  network_id     = var.network_id
+  name           = var.setup_id
+  type           = "AWS"
+  rolearn	 = [module.iam_role.role_arn]
+  account_id	 = [data.aws_caller_identity.current.account_id]
+  account_name   = [var.setup_id]
+
+  regions = [var.region]
 }
 
-variable "key_pair_file" {
-  type        = string
-  default     = "id_rsa.pub"
-  description = "Path to the public key file for the key pair"
+data "aws_caller_identity" "current" {}
+
+resource "random_string" "my_secret" {
+  length  = 16
+  special = true
+  upper   = true
+  lower   = true
+  numeric  = true
+}
+
+resource "tls_private_key" "ssh_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+# Create an RSA key pair
+resource "aws_key_pair" "ssh_key" {
+  key_name   = "my_ssh_key"
+  public_key = tls_private_key.ssh_key.public_key_openssh
 }
 
 # Create the Transit Gateway
@@ -50,18 +96,6 @@ resource "aws_ec2_transit_gateway" "tgw" {
     },
     var.tags
   )
-}
-
-# Create a module for VPCs
-module "vpcs" {
-  source = "./modules/vpc"
-
-  count = var.num_vpcs
-
-  cidr_block = cidrsubnet(var.global_cidr, 4, count.index)
-  name       = "vpc-${count.index}"
-  subnet_counts = var.subnets
-  key_pair_name = aws_key_pair.example.key_name
 }
 
 # Create a peering attachment for each VPC to the Transit Gateway
@@ -83,19 +117,6 @@ resource "aws_ec2_transit_gateway_route_table" "tgw_route_table" {
   }
 }
 
-resource "aws_key_pair" "example" {
-  key_name   = "example-key"
-  public_key = file(var.key_pair_file)
-}
-
-resource "random_string" "my_secret" {
-  length  = 16
-  special = true
-  upper   = true
-  lower   = true
-  numeric  = true
-}
-
 resource "aws_ec2_transit_gateway_route_table_association" "tgw_rt_assoc" {
   count = var.num_vpcs
 
@@ -105,15 +126,7 @@ resource "aws_ec2_transit_gateway_route_table_association" "tgw_rt_assoc" {
 
 # Output the Transit Gateway ID and the VPC attachment IDs
 
-module "security_vpc" {
-  source = "./modules/security_vpc"
 
-  cidr_block = cidrsubnet(var.global_cidr, 4, var.num_vpcs + 1)
-  name       = "security-vpc"
-  key_pair_name = aws_key_pair.example.key_name
-  transit_gateway_id = aws_ec2_transit_gateway.tgw.id
-  secret = random_string.my_secret.result
-}
 
 output "tgw_route_table_ids" {
   value = aws_ec2_transit_gateway_route_table.tgw_route_table[*].id
@@ -128,11 +141,6 @@ output "palo_alto_mgmt_eips" {
   value       = module.security_vpc.palo_alto_mgmt_eips
 }
 
-module "iam_role" {
-  source = "./modules/iam_role"
-  role_name = "Forward_Networks"
-  external_id = data.forwardnetworks_externalid.example.external_id
-}
 
 output "external_service_role_arn" {
   value       = module.iam_role.role_arn
@@ -143,3 +151,9 @@ output "my_secret" {
   value     = random_string.my_secret.result
   sensitive = true
 }
+
+output "private_key" {
+  sensitive = true
+  value = tls_private_key.ssh_key.private_key_pem
+}
+
